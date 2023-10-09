@@ -1,0 +1,62 @@
+---
+- name: Создание пользователя и настройка доступа
+  hosts: ваш_хост
+  become: true
+  gather_facts: false
+
+  vars:
+    new_username: vopen
+    ssh_public_key: путь_к_файлу_открытого_ключа
+
+  tasks:
+    - name: Генерация случайного пароля
+      community.general.random_string:
+        length: 16
+        special: True
+      register: random_password
+
+    - name: Создание пользователя
+      user:
+        name: "{{ new_username }}"
+        password: "{{ random_password.result | password_hash('sha512') }}"
+        update_password: always
+        createhome: yes
+        shell: /bin/bash
+
+    - name: Копирование открытого ключа пользователя
+      authorized_key:
+        user: "{{ new_username }}"
+        key: "{{ lookup('file', ssh_public_key) }}"
+        state: present
+
+    - name: Настройка sudo для нового пользователя
+      copy:
+        dest: /etc/sudoers.d/{{ new_username }}
+        content: "{{ new_username }} ALL=(ALL) NOPASSWD:ALL"
+        owner: root
+        group: root
+        mode: 0440
+        validate: /usr/sbin/visudo -cf %s
+
+    - name: Блокировка доступа по SSH для пользователя root
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+
+    - name: Отключение доступа по паролю
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        state: present
+
+    - name: Перезапуск службы SSH
+      service:
+        name: sshd
+        state: restarted
+
+    - name: Вывод сгенерированного пароля
+      debug:
+        var: random_password.result

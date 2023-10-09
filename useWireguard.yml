@@ -1,0 +1,26 @@
+---
+- name: Выполнение действий на основе аргументов командной строки
+  hosts: ваш_хост
+  become: true
+  remote_user: vopen
+  gather_facts: false
+
+  vars:
+    peer_number: "{{ number }}"  # Переменная для номера пира
+
+  tasks:
+    - name: Проверка типа взаимодействия
+      command: echo "{{ action }}"  # Выводим тип взаимодействия
+      register: interaction_result
+      changed_when: false
+      run_once: true
+
+    - name: Отображение QR-кода
+      command: docker exec -it wireguard /app/show-peer {{ peer_number }}
+      when: interaction_result.stdout == "show_qr"  # Выполняем только если тип взаимодействия "show_qr"
+
+    - name: Копирование файла конфигурации
+      fetch:
+        src: "/vpn/wireguard/config/peer{{ peer_number }}/peer{{ peer_number }}.conf"
+        dest: "{{ playbook_dir }}/copied_configs/"
+      when: interaction_result.stdout == "copy_config"  # Выполняем только если тип взаимодействия "copy_config"

@@ -1,0 +1,43 @@
+---
+- name: Установка и настройка Docker и WireGuard
+  hosts: ваш_хост
+  become: true
+  remote_user: vopen
+  gather_facts: false
+
+  tasks:
+    - name: Обновление системы
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Установка Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Установка Docker Compose
+      apt:
+        name: docker-compose
+        state: present
+
+    - name: Создание директории для WireGuard
+      file:
+        path: /vpn/wireguard/config
+        state: directory
+
+    - name: Копирование файла docker-compose.yml
+      copy:
+        src: docker-compose.yml
+        dest: /home/vopen/docker-compose.yml
+
+    - name: Установка файла docker-compose.yml на автозапуск
+      cron:
+        name: Запуск Docker Compose
+        minute: "@reboot"
+        job: "cd /home/vopen && docker-compose up -d"
+
+    - name: Запуск контейнера WireGuard
+      command: docker-compose up -d
+      args:
+        chdir: /home/vopen
