@@ -25,6 +25,11 @@
       file:
         path: /vpn/wireguard/config
         state: directory
+        
+    - name: Установка wireguard
+      apt:
+        name: wireguard
+        state: present        
 
     - name: Копирование файла docker-compose.yml
       copy:
